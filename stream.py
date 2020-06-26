@@ -1,39 +1,24 @@
 import time
-import sys
-import multiprocessing
-import logging
 import cv2
-import numpy as np
-from Processor import Processor
-from processors.Tinyyolov2 import TrtTinyyolov2
-from Visualization import Visualization
-from process import process
+
+# "nvarguscamerasrc auto-exposure=1 wbmode=1 saturation=1.5 tnr-mode=2 tnr-strength=2 tnr-mode=     2 ee-mode=2 ee-strength=0.5 !"
 
 def gstreamer_pipeline(
-    #capture_width=1920,
     capture_width=1920,
     capture_height=1080,
-    display_width=1920/4,
-    display_height=1080/4,
-    framerate=30,
-    flip_method=0,
+    flip_method=2,
 ):
     return (
-        "nvarguscamerasrc wbmode=1 saturation=1.5 tnr-mode=1 tnr-strength=1 tnr-mode= 2 ee-mode=2 ispdigitalgainrange='1 8' !"
-        "video/x-raw(memory:NVMM), "
-        "width=(int)%d, height=(int)%d, "
-        "format=(string)NV12, framerate=(fraction)30/1 ! "
+        "nvarguscamerasrc wbmode=2 !"
+        # "video/x-raw(memory:NVMM), "
+        # "width=(int)%d, height=(int)%d, "
+        # "format=(string)NV12, framerate=(fraction)%d/1 ! "
         "nvvidconv flip-method=%d ! "
-        "video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
+        # "video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
         "videoconvert ! "
         "video/x-raw, format=(string)BGR ! appsink"
         % (
-            capture_width,
-            capture_height,
-            # framerate,
             flip_method,
-            display_width,
-            display_height,
         )
     )
 
@@ -63,6 +48,5 @@ def stream_camera():
         print("could not open camera")
 
 if __name__ == "__main__":
-    
     # initiate gstreamer pipeline to CSI camera
     stream_camera()
