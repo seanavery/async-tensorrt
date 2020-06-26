@@ -3,6 +3,7 @@ import pycuda.autoinit
 import pycuda.driver as cuda
 import numpy as np
 import cv2 
+import sys
 
 class SSD():
     def __init__(self):
@@ -19,8 +20,8 @@ class SSD():
             engine = runtime.deserialize_cuda_engine(f.read())
         
         # create context
-        context = engine.create_execution_context()
-        stream = cuda.Stream()
+        self.context = engine.create_execution_context()
+        self.stream = cuda.Stream()
 
         # memory allocations for input/output layers
         # binding Input
@@ -33,18 +34,44 @@ class SSD():
             size = trt.volume(engine.get_binding_shape(binding))
             host_mem = cuda.pagelocked_empty(size, np.float32)   
             cuda_mem = cuda.mem_alloc(host_mem.nbytes)
+            self.bindings.append(int(cuda_mem))
             if engine.binding_is_input(binding):
                 self.inputs.append({ 'host': host_mem, 'cuda': cuda_mem })
             else:
                 self.outputs.append({ 'host': host_mem, 'cuda': cuda_mem })
 
     def detect(self, frame):
-        resized = self.pre_process(frame)
+        resized = self.preprocess(frame)
+        outputs = self.infer(resized)
+        print('outputs', outputs)
+        sys.exit()
     
-    def pre_process(self, frame):
+    def preprocess(self, frame):
         frame = cv2.resize(frame, (300, 300))
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame = frame.transpose((2, 0, 1)).astype(np.float32)
         frame *= (2.0/255.0)
         frame -= 1.0
         return frame
+
+    def infer(self, frame):
+        # flatten input image
+        np.copyto(self.inputs[0]['host'], frame.ravel())
+        
+        # execute inference 
+        self.context.execute_async(
+            batch_size=1,
+            bindings=self.bindings,
+            stream_handle=self.stream.handle)
+        
+        # wait for kernel completion before host access
+        self.stream.synchronize()
+       
+        # fetch outputs from gpu
+        cuda.memcpy_dtoh_async(
+            self.outputs[1]['host'], self.outputs[1]['cuda'], self.stream)
+        cuda.memcpy_dtoh_async(
+            self.outputs[0]['host'], self.outputs[0]['cuda'], self.stream)
+        
+
+        return self.outputs[0]['host']
