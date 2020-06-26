@@ -2,6 +2,7 @@ import tensorrt as trt
 import pycuda.autoinit
 import pycuda.driver as cuda
 import numpy as np
+import cv2 
 
 class SSD():
     def __init__(self):
@@ -36,3 +37,14 @@ class SSD():
                 self.inputs.append({ 'host': host_mem, 'cuda': cuda_mem })
             else:
                 self.outputs.append({ 'host': host_mem, 'cuda': cuda_mem })
+
+    def detect(self, frame):
+        resized = self.pre_process(frame)
+    
+    def pre_process(self, frame):
+        frame = cv2.resize(frame, (300, 300))
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = frame.transpose((2, 0, 1)).astype(np.float32)
+        frame *= (2.0/255.0)
+        frame -= 1.0
+        return frame
