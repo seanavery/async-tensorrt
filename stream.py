@@ -1,9 +1,9 @@
 import time
 import cv2
 
-from Processor import SSD
-from Processor2 import Processor
-from Visualizer import Visualizer
+from ssd.Processor import SSD
+from ssd.Processor2 import Processor
+from ssd.Visualizer import Visualizer
 
 def stream_camera():
     pipeline = (
