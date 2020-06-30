@@ -1,26 +1,30 @@
 import threading
 import time
 from queue import Queue
-from ssd.Processor2 import Processor
+from ssd.Processor3 import Processor
 import cv2
+import pycuda.driver as cuda
 
 # global data
 boxes = []
 
 lock = threading.Lock()
 
-def processor(p):
+def processor():
+    cuda_ctx = cuda.Device(0).make_context()
+    p = Processor()
     global boxes
     while True:
         val = q.get()
         if val is not None:
-            boxes, confs, clss = p.detect(val)
+            bxs, confs, clss = p.detect(val)
 
         with lock:
-            boxes = boxes
             print('val', val)
-            print('boxes', boxes)
+            print('boxes', bxs)
             print('p', p)
+    del p
+    del cuda_ctx
 
 def camera_stream():
     pipeline = (
@@ -49,11 +53,12 @@ def camera_stream():
         print("could not open camera")
 
 if __name__ == '__main__':
+    cuda.init()
     q = Queue()
     print('q', q)
-    p = Processor()
-    thread = threading.Thread(target=processor, kwargs={ 'p': p })
+    thread = threading.Thread(target=processor)
     thread.daemon = True
     thread.start()
     # wait three seconds for processor to boot up
+    time.sleep(10)
     camera_stream()
