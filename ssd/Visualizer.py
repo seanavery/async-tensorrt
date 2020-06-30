@@ -5,9 +5,7 @@ from utils.coco_classes import COCO_CLASSES_LIST
 import sys
 
 class Visualizer():
-    def __init__(self, color):
-        # TODO: green gradient
-        self.color = color
+    def __init__(self):
         self.color_list = self.gen_colors()
 
     def gen_colors(self):

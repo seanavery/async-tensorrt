@@ -2,6 +2,7 @@ import threading
 import time
 from queue import Queue
 from ssd.Processor3 import Processor
+from ssd.Visualizer import Visualizer
 import cv2
 import pycuda.driver as cuda
 
@@ -28,7 +29,6 @@ def processor():
             boxes = bxs
             confs = cfs
             clss = cls
-            print('val', val)
     del p
     del cuda_ctx
 
@@ -49,6 +49,7 @@ def camera_stream():
             counter = counter + 1
             if counter % modulus == 0:
                 q.put(frame)
+            frame = vis.draw(frame, boxes, confs, clss)
             cv2.imshow("Camera", frame)
             keyCode = cv2.waitKey(1) & 0xFF
             if keyCode == 27:
@@ -59,6 +60,7 @@ def camera_stream():
         print("could not open camera")
 
 if __name__ == '__main__':
+    vis = Visualizer()
     cuda.init()
     q = Queue()
     thread = threading.Thread(target=processor)
