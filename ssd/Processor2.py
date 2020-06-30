@@ -11,6 +11,8 @@ class Processor():
         Processes numpy frame
     """
     def __init__(self):
+        dev = cuda.Device(0)
+        
         # setup tensorrt engine
         trt_logger = trt.Logger(trt.Logger.INFO)
         TRTbin = 'models/ssd-mobilenet-v2-coco.trt'
@@ -47,14 +49,12 @@ class Processor():
     def __del__(self):
         """ free cuda memory """
         del self.stream
-        del self.cuda_outputs
-        del self.cuda_inputs
 
     def detect(self, frame):
         pre_start = time.time()
         # 1. pre-process image
         resized = self.pre_process(frame)
-        print('resized', resized)
+
         # flatten np image
         np.copyto(self.host_inputs[0], resized.ravel()) 
 
@@ -83,10 +83,15 @@ class Processor():
         # convert to 300 * 300
         # TODO: check if hardware accelerated
         frame = cv2.resize(frame, (300, 300))
+        print('frame 0', frame)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = frame.transpose((2, 0, 1)).astype(np.float32)
-        frame *= (2.0/255.0)
-        frame -= 1.0
+        print('frame 1', frame)
+        # frame = frame.transpose((2, 0, 1)).astype(np.float32)
+        print('frame 2', frame)
+        # frame *= (2.0/255.0)
+        print('frame 3', frame)
+        # frame -= 1.0
+        print('frame 4', frame)
 
         return frame
    

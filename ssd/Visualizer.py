@@ -9,15 +9,13 @@ class Visualizer():
         # TODO: green gradient
         self.color = color
         self.color_list = self.gen_colors()
-        print('self.color_list', self.color_list)
-        print(len(self.color_list))
 
     def gen_colors(self):
         # generate random hues
         hsvs = []
         for x in range(len(COCO_CLASSES_LIST)):
             hsvs.append([float(x) / len(COCO_CLASSES_LIST), 1., 0.7])
-        random.seed(13414)
+        random.seed(3344)
         random.shuffle(hsvs)
         
         # convert hsv to rgb values
@@ -39,17 +37,15 @@ class Visualizer():
         overlay = frame.copy()
         for bb, cf, cl in zip(boxes, confs, clss):
             x_min, y_min, x_max, y_max = bb[0], bb[1], bb[2], bb[3]
-            print('cl', cl, COCO_CLASSES_LIST[cl])
             cls = COCO_CLASSES_LIST[cl]
-            print('cf', cf)
-            print('x_min', x_min)
-            print('y_min', y_min)
-            print('x_max', x_max)
-            print('y_max', y_max)
             color = self.color_list[cl]
+            print('cls', cls) 
+            if cls == 'dining table' or cls == 'suitcase':
+                print("here")
+                continue
             print('color', color)
             cv2.rectangle(overlay, (x_min, y_min), (x_max, y_max), color, -1)
-            cv2.putText(frame, cls, (x_min, y_min), fontFace=cv2.HERSHEY_SIMPLEX, fontSCale=2, color=(255, 255, 255))
+            cv2.putText(frame, cls, (x_min + 20, y_min + 20), fontScale=1, fontFace=cv2.FONT_HERSHEY_SIMPLEX, color=(255, 255, 255))
         
         alpha = 0.4
 
