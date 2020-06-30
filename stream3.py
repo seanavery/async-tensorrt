@@ -7,6 +7,8 @@ import pycuda.driver as cuda
 
 # global data
 boxes = []
+confs = []
+clss = []
 
 lock = threading.Lock()
 
@@ -14,15 +16,19 @@ def processor():
     cuda_ctx = cuda.Device(0).make_context()
     p = Processor()
     global boxes
+    global confs
+    global clss
+
     while True:
         val = q.get()
         if val is not None:
-            bxs, confs, clss = p.detect(val)
+            bxs, cfs, cls = p.detect(val)
 
         with lock:
+            boxes = bxs
+            confs = cfs
+            clss = cls
             print('val', val)
-            print('boxes', bxs)
-            print('p', p)
     del p
     del cuda_ctx
 
@@ -55,7 +61,6 @@ def camera_stream():
 if __name__ == '__main__':
     cuda.init()
     q = Queue()
-    print('q', q)
     thread = threading.Thread(target=processor)
     thread.daemon = True
     thread.start()
