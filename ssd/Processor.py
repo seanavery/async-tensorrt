@@ -1,109 +1,110 @@
+import sys
+import time
+import cv2
 import tensorrt as trt
-import pycuda.autoinit
+# import pycuda.autoinit
 import pycuda.driver as cuda
 import numpy as np
-import cv2 
-import sys
 
-class SSD():
+class Processor():  
+    """
+        Processes numpy frame
+    """
     def __init__(self):
-        # initialize logger for debugging
+        # setup tensorrt engine
         trt_logger = trt.Logger(trt.Logger.INFO)
-        
-        # load libnvinfer plugins
-        # https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/
-        trt.init_libnvinfer_plugins(trt_logger, '')
-        
-        # instantiate TensorRT engine
-        trt_model = 'models/ssd-mobilenet-v2-coco.trt'
-        with open(trt_model, 'rb') as f, trt.Runtime(trt_logger) as runtime:
-            engine = runtime.deserialize_cuda_engine(f.read())
-        
-        # create context
-        self.stream = cuda.Stream()
+        TRTbin = 'models/ssd-mobilenet-v2-coco.trt'
 
-        # memory allocations for input/output layers
-        # binding Input
-        # binding NMS
-        # binding NMS_1
-        self.inputs = []
-        self.outputs = []
+        # load plugins
+        trt.init_libnvinfer_plugins(trt_logger, '')
+
+        # load engine
+        with open(TRTbin, 'rb') as f, trt.Runtime(trt_logger) as runtime:
+            self.engine = runtime.deserialize_cuda_engine(f.read())
+
+        # create context
+        self.host_inputs = []
+        self.host_outputs = []
+        self.cuda_inputs = []
+        self.cuda_outputs = []
         self.bindings = []
-        for binding in engine:
-            size = trt.volume(engine.get_binding_shape(binding)) * \
-                    engine.max_batch_size
-            host_mem = cuda.pagelocked_empty(size, np.float32)   
+        self.stream = cuda.Stream()
+        for binding in self.engine:
+            size = trt.volume(self.engine.get_binding_shape(binding)) * \
+                    self.engine.max_batch_size
+            host_mem = cuda.pagelocked_empty(size, np.float32)
             cuda_mem = cuda.mem_alloc(host_mem.nbytes)
             self.bindings.append(int(cuda_mem))
-            if engine.binding_is_input(binding):
-                self.inputs.append({ 'host': host_mem, 'cuda': cuda_mem })
+            if self.engine.binding_is_input(binding):
+                self.host_inputs.append(host_mem)
+                self.cuda_inputs.append(cuda_mem)
             else:
-                self.outputs.append({ 'host': host_mem, 'cuda': cuda_mem })
+                self.host_outputs.append(host_mem)
+                self.cuda_outputs.append(cuda_mem)
+            
+            self.context = self.engine.create_execution_context()
 
-        self.context = engine.create_execution_context()
+    def __del__(self):
+        """ free cuda memory """
+        del self.stream
 
     def detect(self, frame):
-        resized = self.preprocess(frame)
-        print('resized', resized)
-        output = self.infer(resized)
-        print('output', output)
-        print('output shape', output.shape)
-        sys.exit()
-        boxes, confs, clss = self.postprocess(frame, output)
-        print('boxes', boxes)
-        print('confs', confs)
-        print('clss', clss)
-    
-    def preprocess(self, frame):
+        pre_start = time.time()
+        # 1. pre-process image
+        resized = self.pre_process(frame)
+        # flatten np image
+        np.copyto(self.host_inputs[0], resized.ravel()) 
+
+        # copy buffer into cuda, serialize via stream
+        cuda.memcpy_htod_async(
+            self.cuda_inputs[0], self.host_inputs[0], self.stream)
+        pre_end = time.time()
+
+        # execute inference async
+        self.context.execute_async(
+            batch_size=1,
+            bindings=self.bindings, # input/output buffer addresses
+            stream_handle=self.stream.handle)
+        cuda.memcpy_dtoh_async(
+            self.host_outputs[1], self.cuda_outputs[1], self.stream)
+        cuda.memcpy_dtoh_async(
+            self.host_outputs[0], self.cuda_outputs[0], self.stream)
+
+        self.stream.synchronize()
+        output = self.host_outputs[0]
+
+        # post process output
+        return self.post_process(frame, output, confidence_threshold=0.3)
+
+    def pre_process(self, frame):
+        # convert to 300 * 300
+        # TODO: check if hardware accelerated
+        print('frame', frame)
         frame = cv2.resize(frame, (300, 300))
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame = frame.transpose((2, 0, 1)).astype(np.float32)
         frame *= (2.0/255.0)
         frame -= 1.0
+
         return frame
-
+   
     def infer(self, frame):
-        # flatten input image
-        np.copyto(self.inputs[0]['host'], frame.ravel())
-        
-        # execute inference 
-        self.context.execute_async(
-            batch_size=1,
-            bindings=self.bindings,
-            stream_handle=self.stream.handle)
-        
-       
-        # fetch outputs from gpu
-        cuda.memcpy_dtoh_async(
-            self.outputs[1]['host'], self.outputs[1]['cuda'], self.stream)
-        cuda.memcpy_dtoh_async(
-            self.outputs[0]['host'], self.outputs[0]['cuda'], self.stream)
-     
-        # wait for kernel completion before host access
-        self.stream.synchronize()
- 
-        return self.outputs[0]['host']
+        return True
 
-    def postprocess(self, frame, output):
-        print('frame.shape', frame.shape)
-        h, w, _ = frame.shape
+    def post_process(self, frame, output, confidence_threshold):
+        img_h, img_w, _ = frame.shape
         boxes, confs, clss = [], [], []
         for prefix in range(0, len(output), 7):
             confidence = float(output[prefix+2])
-            print('confidence', confidence)
-            if confidence > 0.0:
-                print('found one!!!', confidence)
-                sys.exit()
-            if confidence < 0.1:
+            if confidence < confidence_threshold:
                 continue
-            x1 = int(output[prefix+3] * w)
-            y1 = int(output[prefix+4] * h)
-            x2 = int(output[prefix+5] * w)
-            y2 = int(output[prefix+6] * h)
+            x1 = int(output[prefix+3] * img_w)
+            y1 = int(output[prefix+4] * img_h)
+            x2 = int(output[prefix+5] * img_w)
+            y2 = int(output[prefix+6] * img_h)
             cls = int(output[prefix+1])
-            boxes.append((x1, y1, x2, y2))
+            boxes.append((x1, y1, x2,  y2))
             confs.append(confidence)
             clss.append(cls)
-
         return boxes, confs, clss
 
