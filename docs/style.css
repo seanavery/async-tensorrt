@@ -1,0 +1,10 @@
+body {
+  margin: 0;
+  font-family: 'Courier New';
+}
+
+section.cover {
+   background: none !important;
+   font-family: "Courier New" !important;
+}
+
