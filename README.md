@@ -18,9 +18,9 @@ The challenge is trying to maintain a 30 fps camera stream when inference time a
 
 The code is a modification from the async exeuction in [JK Jung's TensorRT Demos](https://github.com/jkjung-avt/tensorrt_demos/blob/master/trt_ssd_async.py). In my code the main thread is responsible for Video Capture and Display, and the child thread handles inference and processing. This allows inference to execute modulus the incoming frames.
 
--[x] 1. Create Python thread
--[x] 2. Initialize Cuda context inside thread
--[x] 3. Camera capture in main thread
--[x] 4. Queue and modulus to throttle inference
--[x] 5. Locking and global variables
--[x] 6. Visualize inference results from shared state
+- [x] 1. Create Python thread
+- [x] 2. Initialize Cuda context inside thread
+- [x] 3. Camera capture in main thread
+- [x] 4. Queue and modulus to throttle inference
+- [x] 5. Locking and global variables
+- [x] 6. Visualize inference results from shared state
