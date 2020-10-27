@@ -14,7 +14,7 @@ certifi==2018.1.18
 chardet==3.0.4
 colorama==0.3.3
 contextlib2==0.6.0.post1
-cryptography==2.1.4
+cryptography==3.2
 cupshelpers==1.0
 Cython==0.29.19
 decorator==4.1.2
