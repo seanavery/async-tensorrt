@@ -67,7 +67,7 @@ pandas==0.22.0
 pbr==5.4.5
 Pillow==7.1.2
 pluggy==0.6.0
-protobuf==3.8.0
+protobuf==3.18.3
 protobuf-compiler==1.0.20
 py==1.5.2
 pyasn1==0.4.8
