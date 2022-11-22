@@ -65,7 +65,7 @@ opt-einsum==3.2.1
 PAM==0.4.2
 pandas==0.22.0
 pbr==5.4.5
-Pillow==7.1.2
+Pillow==9.3.0
 pluggy==0.6.0
 protobuf==3.8.0
 protobuf-compiler==1.0.20
