@@ -58,7 +58,7 @@ netron==4.3.1
 numpy==1.18.5
 oauth==1.0.1
 oauthlib==3.1.0
-onnx==1.7.0
+onnx==1.13.0
 onnx-simplifier==0.2.9
 onnxruntime==1.3.0
 opt-einsum==3.2.1
